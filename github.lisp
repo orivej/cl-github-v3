@@ -3,6 +3,7 @@
   (:use #:cl)
   (:export #:*username*
            #:*password*
+           #:*endpoint*
            #:define-github-command
            #:api-command
            #:booleanize-parameters))
@@ -14,6 +15,9 @@
 
 (defvar *password* nil
   "Password to use for API calls")
+
+(defvar *endpoint* "api.github.com"
+  "GitHub API endpoint")
 
 (define-condition api-error (error)
   ((http-status :initarg :http-status
@@ -53,14 +57,15 @@
            (yason:parse (flex:octets-to-string body :external-format :utf-8)))
           ((string= "application" main-ct) body))))
 
-(defun api-command (url &key body (method :get) (username *username*) (password *password*) parameters)
+(defun api-command (url &key body (method :get) (username *username*) (password *password*) (endpoint *endpoint*) parameters)
   (multiple-value-bind
         (body status-code headers)
-      (drakma:http-request (format nil "https://api.github.com~A" url)
+      (drakma:http-request (format nil "https://~A~A" endpoint url)
                            :method method
                            :parameters (plist-to-http-parameters parameters)
                            :basic-authorization (when username (list username password))
                            :content-type "application/json"
+                           :force-binary t
                            :content (when body
                                       (with-output-to-string (s)
                                         (yason:encode (plist-to-hash-table body) s))))
